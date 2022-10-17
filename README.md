@@ -1,6 +1,6 @@
 <!--
   Title: DBResolver
-  Description: Resolve between read and write database automatically for gorm
+  Description: Resolve between read and write database automatically for gorm. go-gorm-v1 ,dbresolver
   Author: amitavaghosh1
   -->
 
