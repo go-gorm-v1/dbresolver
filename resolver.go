@@ -80,7 +80,6 @@ func (d *Database) Where(query interface{}, args ...interface{}) *gorm.DB {
 	return replica.Where(query, args...)
 }
 
-/*
 func (d *Database) Find(query interface{}, args ...interface{}) *gorm.DB {
 	return d.getReplica().Find(query, args...)
 }
@@ -101,7 +100,6 @@ func (d *Database) Take(query interface{}, args ...interface{}) *gorm.DB {
 func (d *Database) Save(value interface{}) *gorm.DB {
 	return d.getMaster().Save(value)
 }
-*/
 
 func (d *Database) getReplica() *gorm.DB {
 	nextIdx := d.Config.Policy.Get()
