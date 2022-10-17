@@ -55,9 +55,9 @@ func (d *Database) WithMode(dbMode DbActionMode) *gorm.DB {
 
 func (d *Database) Exec(sql string, values ...interface{}) *gorm.DB {
 	master := d.getMaster()
-	replica := d.getReplica()
 
 	if !isDML(strings.ToLower(sql)) {
+		replica := d.getReplica()
 		return replica.Exec(sql, values...)
 	}
 

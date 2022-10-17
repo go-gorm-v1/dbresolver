@@ -1,12 +1,15 @@
 package dbresolver
 
 import (
-	"regexp"
+	"errors"
 	"testing"
+	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jinzhu/gorm"
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestIsDML(t *testing.T) {
@@ -39,52 +42,99 @@ func TestIsDML(t *testing.T) {
 	})
 }
 
-func TestDBResolver(t *testing.T) {
-	t.Run("test queries passed to Raw", func(t *testing.T) {
-		t.Run("select query", func(t *testing.T) {
-			masterDB, _ := initDatabase(t)
-			replicaDB, replicaDBMock := initDatabase(t)
+type DBResolverSuite struct {
+	suite.Suite
+	database *Database
+	MasterDB *gorm.DB
+	Replicas []*gorm.DB
+}
 
-			_ = Register(DBConfig{
-				Master:   masterDB,
-				Replicas: []*gorm.DB{replicaDB},
-			})
+func (dbs *DBResolverSuite) SetupTest() {
+	masterDB, err := gorm.Open("sqlite3", "./testdbs/users_write.db")
+	t := dbs.Suite.T()
+	require.NoError(t, err, "failed to connect to write db")
 
-			query := `SELECT * FROM users`
-			replicaDBMock.ExpectQuery(regexp.QuoteMeta(query)) //.WillReturnRows(sqlmock.NewRows(nil))
+	replicaDBs := []*gorm.DB{}
+	replica, err := gorm.Open("sqlite3", "./testdbs/users_read_a.db")
+	require.NoError(t, err, "failed  to connect to read instance a")
 
-			// db.Raw(query)
-			replicaDB.Raw(query)
+	replicaDBs = append(replicaDBs, replica)
 
-			// require.NoError(t, masterDBMock.ExpectationsWereMet())
-			require.NoError(t, replicaDBMock.ExpectationsWereMet())
-		})
+	replica, err = gorm.Open("sqlite3", "./testdbs/users_read_b.db")
+	require.NoError(t, err, "failed  to connect to read instance b")
 
-		t.Run("insert query", func(t *testing.T) {
-			masterDB, masterDBMock := initDatabase(t)
-			replicaDB, replicaDBMock := initDatabase(t)
+	replicaDBs = append(replicaDBs, replica)
 
-			db := Register(DBConfig{
-				Master:   masterDB,
-				Replicas: []*gorm.DB{replicaDB},
-			})
-
-			query := `INSERT INTO users(id, email) VALUES(1, 'abc@efg.hij')`
-			masterDBMock.ExpectExec(regexp.QuoteMeta(query))
-
-			db.Exec(query)
-			require.NoError(t, replicaDBMock.ExpectationsWereMet())
-			require.NoError(t, masterDBMock.ExpectationsWereMet())
-		})
+	dbs.database = Register(DBConfig{
+		Master:   masterDB,
+		Replicas: replicaDBs,
 	})
 }
 
-func initDatabase(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err, "should not have failed to  init mock db")
+type Result struct {
+	Email string
+}
 
-	dB, err := gorm.Open("mysql", db)
-	require.NoError(t, err, "should not have failed to open gorm")
+func (dbs *DBResolverSuite) TestRawQueries() {
+	t := dbs.Suite.T()
 
-	return dB, mock
+	t.Run("with automatic switching to replica", func(t *testing.T) {
+		recv := make(chan string, 2)
+
+		for i := 0; i < 2; i++ {
+			go func() {
+				var result Result
+				err := dbs.database.Raw("SELECT email FROM users WHERE id=?", "a").Scan(&result).Error
+				require.NoError(t, err, "should not have failed to get users from database")
+
+				recv <- result.Email
+			}()
+		}
+
+		emails := []string{}
+
+		var fetchFailed error
+
+		for i := 0; i < 2; i++ {
+			select {
+			case email := <-recv:
+				emails = append(emails, email)
+			case <-time.After(2 * time.Second):
+				fetchFailed = errors.New("failed")
+			}
+		}
+
+		require.NoError(t, fetchFailed, "should not have failed to get data")
+		require.ElementsMatch(t, emails, []string{"dad@gmail.com", "foo@gmail.com"})
+	})
+
+	t.Run("selecting db mode manually", func(t *testing.T) {
+		var result Result
+
+		err := dbs.database.WithMode(DbWriteMode).Raw("SELECT * FROM users WHERE id = ?", "a").Scan(&result).Error
+		require.NoError(t, err, "should not have failed to get users from write db")
+
+		require.Equal(t, result.Email, "baz@gmail.com")
+	})
+}
+
+func (dbs *DBResolverSuite) TestExecQuery() {
+	t := dbs.Suite.T()
+
+	err := dbs.database.Exec(`INSERT INTO users (id, email) VALUES(?, ?)`, "c", "boo@gmail.com").Error
+	require.NoError(t, err, "failed to insert into db")
+
+	var result Result
+
+	err = dbs.database.WithMode(DbWriteMode).Raw("SELECT email FROM users WHERE id = ?", "c").Scan(&result).Error
+	require.NoError(t, err, "failed to get email from id")
+
+	require.Equal(t, result.Email, "boo@gmail.com")
+
+	err = dbs.database.Exec("DELETE FROM users WHERE id = ?", "c").Error
+	require.NoError(t, err, "failed to delete from db")
+}
+
+func TestDBResolver(t *testing.T) {
+	suite.Run(t, new(DBResolverSuite))
 }
