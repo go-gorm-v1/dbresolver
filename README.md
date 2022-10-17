@@ -10,6 +10,22 @@ DBResolver for [gorm v1](https://v1.gorm.io/docs/index.html). This adds function
 
 ## Quick Start
 
+#### Importing
+
+```bash
+# use 1.0.0 for versions that use Write mode by default for methods other than
+# Raw, Where, Exec
+go get github.com/go-gorm-v1/dbresolver@1.0.0 
+
+# use 2.0.0 that uses read db for Find, First, Last, Take
+# and write db for Save
+# unlike 1.0.0
+go get github.com/go-gorm-v1/dbresolver@1.0.0 
+```
+
+
+#### Usage
+
 ```go
 import (
   "github.com/go-gorm-v1/dbresolver"
