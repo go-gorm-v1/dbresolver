@@ -161,6 +161,17 @@ func (dbs *DBResolverSuite) TestUpdate() {
 	require.NoError(t, err, "failed to delete from db")
 }
 
+func (dbs *DBResolverSuite) TestFind() {
+	t := dbs.Suite.T()
+
+	var user = User{ID: "a"}
+
+	err := dbs.database.Find(&user).Error
+	require.NoError(t, err, "should not have failed to fetch")
+
+	require.Equal(t, user.Email, "")
+}
+
 func TestDBResolver(t *testing.T) {
 	suite.Run(t, new(DBResolverSuite))
 }
