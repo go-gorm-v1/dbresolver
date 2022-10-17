@@ -55,12 +55,12 @@ func (dbs *DBResolverSuite) SetupTest() {
 	require.NoError(t, err, "failed to connect to write db")
 
 	replicaDBs := []*gorm.DB{}
-	replica, err := gorm.Open("sqlite3", "./testdbs/users_read_a.db")
+	replica, err := gorm.Open("sqlite3", "./testdbs/users_read_a.db?mode=ro")
 	require.NoError(t, err, "failed  to connect to read instance a")
 
 	replicaDBs = append(replicaDBs, replica)
 
-	replica, err = gorm.Open("sqlite3", "./testdbs/users_read_b.db")
+	replica, err = gorm.Open("sqlite3", "./testdbs/users_read_b.db?mode=ro")
 	require.NoError(t, err, "failed  to connect to read instance b")
 
 	replicaDBs = append(replicaDBs, replica)
@@ -71,7 +71,8 @@ func (dbs *DBResolverSuite) SetupTest() {
 	})
 }
 
-type Result struct {
+type User struct {
+	ID    string
 	Email string
 }
 
@@ -83,7 +84,7 @@ func (dbs *DBResolverSuite) TestRawQueries() {
 
 		for i := 0; i < 2; i++ {
 			go func() {
-				var result Result
+				var result User
 				err := dbs.database.Raw("SELECT email FROM users WHERE id=?", "a").Scan(&result).Error
 				require.NoError(t, err, "should not have failed to get users from database")
 
@@ -109,7 +110,7 @@ func (dbs *DBResolverSuite) TestRawQueries() {
 	})
 
 	t.Run("selecting db mode manually", func(t *testing.T) {
-		var result Result
+		var result User
 
 		err := dbs.database.WithMode(DbWriteMode).Raw("SELECT * FROM users WHERE id = ?", "a").Scan(&result).Error
 		require.NoError(t, err, "should not have failed to get users from write db")
@@ -124,12 +125,37 @@ func (dbs *DBResolverSuite) TestExecQuery() {
 	err := dbs.database.Exec(`INSERT INTO users (id, email) VALUES(?, ?)`, "c", "boo@gmail.com").Error
 	require.NoError(t, err, "failed to insert into db")
 
-	var result Result
+	var result User
 
 	err = dbs.database.WithMode(DbWriteMode).Raw("SELECT email FROM users WHERE id = ?", "c").Scan(&result).Error
 	require.NoError(t, err, "failed to get email from id")
 
 	require.Equal(t, result.Email, "boo@gmail.com")
+
+	err = dbs.database.Exec("DELETE FROM users WHERE id = ?", "c").Error
+	require.NoError(t, err, "failed to delete from db")
+}
+
+func (dbs *DBResolverSuite) TestUpdate() {
+	t := dbs.Suite.T()
+
+	err := dbs.database.Exec(`INSERT INTO users (id, email) VALUES(?, ?)`, "c", "boo@gmail.com").Error
+	require.NoError(t, err, "failed to insert into db")
+
+	var result User
+
+	err = dbs.database.Model(&User{}).Where("id = ?", "c").Update("email", "boohoo@gmail.com").Error
+	require.NoError(t, err, "should not have failed to update")
+
+	err = dbs.database.WithMode(DbWriteMode).Raw("SELECT email FROM users WHERE id = ?", "c").Scan(&result).Error
+	require.NoError(t, err, "should not have failed to get from database")
+
+	require.Equal(t, result.Email, "boohoo@gmail.com")
+
+	result = User{}
+
+	err = dbs.database.Raw("SELECT email FROM users WHERE id = ?", "c").Scan(&result).Error
+	require.Error(t, err, "should have failed to get from database")
 
 	err = dbs.database.Exec("DELETE FROM users WHERE id = ?", "c").Error
 	require.NoError(t, err, "failed to delete from db")
