@@ -6,5 +6,5 @@ test:
 render.docs:
 	npm i markdown-to-standalone-html
 	cp ./templates/template.html node_modules/markdown-to-standalone-html/templates/template.toc.html
-	node_modules/markdown-to-standalone-html/dist/markdown-to-standalone-html.js README.md -o index.html
+	node_modules/markdown-to-standalone-html/dist/markdown-to-standalone-html.js README.md -bj -o index.html
 

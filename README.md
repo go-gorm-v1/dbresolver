@@ -8,6 +8,9 @@
 
 DBResolver for [gorm v1](https://v1.gorm.io/docs/index.html). This adds functionality to switch between read and write databases.
 
+[Repo](github.com/go-gorm-v1/dbresolver)
+
+
 ## Quick Start
 
 #### Importing
@@ -105,7 +108,6 @@ This uses write mode for all [Query](https://v1.gorm.io/docs/query.html) methods
 dbresolver.DBConfig {
     DefaultMode: &dbresolver.DbWriteMode
 }
-
 ```
 
 
@@ -131,6 +133,5 @@ You can provide your own load balancer. The `Balancer` interface is defined as s
 type Balancer interface {
     Get() int64
 }
-
 ```
 
