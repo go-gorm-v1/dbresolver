@@ -26,11 +26,20 @@ import (
   _ "github.com/mattn/go-sqlite3"
 )
 
+func setDatabaseDefaults(db *gorm.DB) {
+	db.DB().SetMaxIdleConns(MAX_IDLE_CONNECTIONS)
+	db.DB().SetConnMaxLifetime(CONN_MAX_LIFETIME)
+	db.DB().SetMaxOpenConns(MAX_OPEN_CONNECTIONS)
+	db.LogMode(true)
+}
+
 func Setup() *dbresolver.Database {
     masterDB, err := gorm.Open("sqlite3", "./testdbs/users_write.db")
     if err != nil {
       log.Fatal("failed to connect to db", err)
     }
+
+    setDatabaseDefaults(masterDB)
 
     replicaDBs := []*gorm.DB{}
     
@@ -39,6 +48,8 @@ func Setup() *dbresolver.Database {
       log.Fatal("failed to connect to db", err)
     }
 
+    setDatabaseDefaults(replica)
+
     replicaDBs = append(replicaDBs, replica)
 
     replica, err = gorm.Open("sqlite3", "./testdbs/users_read_b.db")
@@ -46,6 +57,7 @@ func Setup() *dbresolver.Database {
       log.Fatal("failed to connect to db", err)
     }
 
+    setDatabaseDefaults(replica)
 
     replicaDBs = append(replicaDBs, replica)
 
