@@ -8,21 +8,23 @@ import (
 )
 
 type DBConfig struct {
-	Master   *gorm.DB
-	Replicas []*gorm.DB
-	Policy   Balancer
+	Master      *gorm.DB
+	Replicas    []*gorm.DB
+	Policy      Balancer
+	DefaultMode *DbActionMode
 }
 
 type DbActionMode string
 
 var (
 	DbWriteMode DbActionMode = "write"
-	DbReadMode               = "read"
+	DbReadMode  DbActionMode = "read"
 )
 
 type Database struct {
-	*gorm.DB // this makes sure, calls like Save Update etc, goes through default source db
-	Config   DBConfig
+	// this makes sure, calls like Save Update etc, goes through default source db
+	*gorm.DB
+	Config DBConfig
 }
 
 func Register(config DBConfig) *Database {
@@ -42,6 +44,11 @@ func Register(config DBConfig) *Database {
 	}
 
 	config.Policy = balancer
+
+	if config.DefaultMode == nil {
+		config.DefaultMode = &DbReadMode
+	}
+
 	return &Database{DB: config.Master, Config: config}
 }
 
@@ -57,44 +64,42 @@ func (d *Database) Exec(sql string, values ...interface{}) *gorm.DB {
 	master := d.getMaster()
 
 	if !isDML(strings.ToLower(sql)) {
-		replica := d.getReplica()
-		return replica.Exec(sql, values...)
+		return d.getReplica().Exec(sql, values...)
 	}
 
 	return master.Exec(sql, values...)
 }
 
 func (d *Database) Raw(sql string, values ...interface{}) *gorm.DB {
-	replica := d.getReplica()
-	master := d.DB
-
 	if isDML(strings.ToLower(sql)) {
-		return master.Raw(sql, values...)
+		return d.getMaster().Raw(sql, values...)
 	}
 
-	return replica.Raw(sql, values...)
+	return d.getReplica().Raw(sql, values...)
 }
 
 func (d *Database) Where(query interface{}, args ...interface{}) *gorm.DB {
-	replica := d.getReplica()
-	return replica.Where(query, args...)
+	return d.selectSource().Where(query, args...)
 }
 
 func (d *Database) Find(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().Find(query, args...)
+	return d.selectSource().Find(query, args...)
 }
 
 func (d *Database) First(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().First(query, args...)
+	return d.selectSource().First(query, args...)
 }
 
 func (d *Database) Last(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().Last(query, args...)
+	return d.selectSource().Last(query, args...)
 }
 
 func (d *Database) Take(query interface{}, args ...interface{}) *gorm.DB {
-	replica := d.getReplica()
-	return replica.Take(query, args...)
+	return d.selectSource().Take(query, args...)
+}
+
+func (d *Database) Count(value interface{}) *gorm.DB {
+	return d.selectSource().Count(value)
 }
 
 func (d *Database) Save(value interface{}) *gorm.DB {
@@ -113,6 +118,14 @@ func (d *Database) getReplica() *gorm.DB {
 
 func (d *Database) getMaster() *gorm.DB {
 	return d.DB
+}
+
+func (d *Database) selectSource() *gorm.DB {
+	if DbWriteMode == *d.Config.DefaultMode {
+		return d.getMaster()
+	}
+
+	return d.getReplica()
 }
 
 func isDML(sql string) bool {

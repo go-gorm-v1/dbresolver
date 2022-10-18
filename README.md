@@ -59,10 +59,8 @@ func Setup() *dbresolver.Database {
     return dbresolver.Register(dbresolver.DBConfig{
         Master:   masterDB,
         Replicas: replicaDBs,
-        // By default we have
-        // Policy: &dbresolver.RoundRobalancer{}
-        // Other option
-        // Policy: &dbresolver.RandomBalancer{}
+        // Policy: &dbresolver.RoundRobalancer{},
+        // DefaultMode: &dbresolver.DbWriteMode,
     })
 }
 
@@ -72,7 +70,7 @@ db.Raw(`SELECT * FROM users`)
 ```
 
 
-### Transaction
+### Switching data source
 
 It is possible to provide the option to use read or write forcefully.
 
@@ -85,6 +83,23 @@ db.WithMode(dbresolver.DBWriteMode).Raw(`SELECT * FROM users`)
 
 // Use read db
 db.WithMode(dbresolver.DBReadMode).Exec(`DELETE FROM users`)
+```
+
+It is also possible to set the default mode to write mode. 
+
+This uses write mode for all [Query](https://v1.gorm.io/docs/query.html) methods apart from `Where`
+
+- `Find`
+- `First`
+- `Last`
+- `Take`
+- `Count`
+
+```go
+dbresolver.DBConfig {
+    DefaultMode: &dbresolver.DbWriteMode
+}
+
 ```
 
 
