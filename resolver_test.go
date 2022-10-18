@@ -169,12 +169,12 @@ func (dbs *DBResolverSuite) TestFind() {
 	err := dbs.database.Find(&user).Error
 	require.NoError(t, err, "should not have failed to fetch")
 
-	require.Equal(t, user.Email, "foo@gmail.com")
+	require.Equal(t, user.Email, "baz@gmail.com")
 
-	err = dbs.database.WithMode(DbWriteMode).Find(&user).Error
+	err = dbs.database.WithMode(DbReadMode).Find(&user).Error
 	require.NoError(t, err, "should not have failed to fetch")
 
-	require.Equal(t, user.Email, "baz@gmail.com")
+	require.Equal(t, user.Email, "foo@gmail.com")
 
 }
 

@@ -17,7 +17,7 @@ type DbActionMode string
 
 var (
 	DbWriteMode DbActionMode = "write"
-	DbReadMode               = "read"
+	DbReadMode  DbActionMode = "read"
 )
 
 type Database struct {
@@ -78,27 +78,6 @@ func (d *Database) Raw(sql string, values ...interface{}) *gorm.DB {
 func (d *Database) Where(query interface{}, args ...interface{}) *gorm.DB {
 	replica := d.getReplica()
 	return replica.Where(query, args...)
-}
-
-func (d *Database) Find(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().Find(query, args...)
-}
-
-func (d *Database) First(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().First(query, args...)
-}
-
-func (d *Database) Last(query interface{}, args ...interface{}) *gorm.DB {
-	return d.getReplica().Last(query, args...)
-}
-
-func (d *Database) Take(query interface{}, args ...interface{}) *gorm.DB {
-	replica := d.getReplica()
-	return replica.Take(query, args...)
-}
-
-func (d *Database) Save(value interface{}) *gorm.DB {
-	return d.getMaster().Save(value)
 }
 
 func (d *Database) getReplica() *gorm.DB {
