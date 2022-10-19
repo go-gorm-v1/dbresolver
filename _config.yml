@@ -1,7 +1,17 @@
+title: DBResolver | Gorm v1
+description: Resolve between read and write databases for gorm v1
+markdown: kramdown
+highlighter: rouge
+
 plugins:
   - jekyll-relative-links
+
+kramdown:
+  syntax_highlighter: rouge
+
 relative_links:
   enabled: true
   collections: true
+
 include:
   - README.md
