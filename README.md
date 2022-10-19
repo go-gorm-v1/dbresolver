@@ -8,7 +8,7 @@
 
 DBResolver for [gorm v1](https://v1.gorm.io/docs/index.html). This adds functionality to switch between read and write databases.
 
-[Repo](github.com/go-gorm-v1/dbresolver)
+[Repo](https://github.com/go-gorm-v1/dbresolver)
 
 
 ## Quick Start
