@@ -2,6 +2,7 @@ title: DBResolver | Gorm v1
 description: Resolve between read and write databases for gorm v1
 markdown: kramdown
 highlighter: rouge
+remote_theme: just-the-docs/just-the-docs
 
 plugins:
   - jekyll-relative-links
