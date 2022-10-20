@@ -6,6 +6,7 @@ remote_theme: just-the-docs/just-the-docs
 
 plugins:
   - jekyll-relative-links
+  - jekyll-google_search_console_verification_file
 
 kramdown:
   syntax_highlighter: rouge
@@ -13,6 +14,9 @@ kramdown:
 relative_links:
   enabled: true
   collections: true
+
+google_search_console:
+  verification_file_code: 6b05009903c1130d
 
 include:
   - README.md
