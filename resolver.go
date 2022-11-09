@@ -179,25 +179,3 @@ func isDML(sql string) bool {
 
 	return true
 }
-
-func getDbModeManuallyIfPresent(values ...interface{}) *DbActionMode {
-	if len(values) == 0 {
-		return nil
-	}
-
-	lastValue := values[len(values)-1]
-
-	mode, ok := lastValue.(DbActionMode)
-	if !ok {
-		return nil
-	}
-	return &mode
-}
-
-/*
-dbMode := getDbModeManuallyIfPresent(values...)
-if dbMode == nil || string(*dbMode) == DbReadMode {
-	log.Println("using replica")
-	return replica.Raw(sql, values...)
-}
-*/
