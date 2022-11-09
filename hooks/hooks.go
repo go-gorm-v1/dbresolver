@@ -58,11 +58,14 @@ func (e *EventStore) Emit(event string, data ...interface{}) Result {
 		return Result{Err: ErrUninitialized}
 	}
 
+	e.mu.Lock()
 	handler, ok := e.observers[event]
 	if !ok {
+		e.mu.Unlock()
 		return Result{}
 	}
 
+	e.mu.Unlock()
 	return handler.Fn(data...)
 }
 
@@ -70,6 +73,9 @@ func (e *EventStore) Off(event string) {
 	if e.observers == nil {
 		return
 	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
 	_, ok := e.observers[event]
 	if ok {
