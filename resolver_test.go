@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-gorm-v1/dbresolver/hooks"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 
@@ -69,6 +70,7 @@ func (dbs *DBResolverSuite) SetupTest() {
 		Master:   masterDB,
 		Replicas: replicaDBs,
 	})
+
 }
 
 type User struct {
@@ -122,8 +124,18 @@ func (dbs *DBResolverSuite) TestRawQueries() {
 func (dbs *DBResolverSuite) TestExecQuery() {
 	t := dbs.Suite.T()
 
+	dbs.database.Hooks.On(EventAfterDBSelect, func(args ...interface{}) hooks.Result {
+		dbMode, ok := args[0].(string)
+		require.True(t, ok, "should have received db mode")
+
+		require.Equal(t, dbMode, "master")
+		return hooks.Result{}
+	})
+
 	err := dbs.database.Exec(`INSERT INTO users (id, email) VALUES(?, ?)`, "c", "boo@gmail.com").Error
 	require.NoError(t, err, "failed to insert into db")
+
+	dbs.database.Hooks.Off(EventAfterDBSelect)
 
 	var result User
 
@@ -166,16 +178,33 @@ func (dbs *DBResolverSuite) TestFind() {
 
 	var user = User{ID: "a"}
 
-	err := dbs.database.Find(&user).Error
+	dbs.database.Hooks.On(EventAfterDBSelect, func(args ...interface{}) hooks.Result {
+		dbMode, ok := args[0].(string)
+		require.True(t, ok, "should have received db mode")
+
+		require.Equal(t, dbMode, "replica")
+		return hooks.Result{}
+	})
+
+	err := dbs.database.WithMode(DbReadMode).Find(&user).Error
 	require.NoError(t, err, "should not have failed to fetch")
 
 	require.Equal(t, user.Email, "foo@gmail.com")
+	dbs.database.Hooks.Off(EventAfterDBSelect)
+
+	dbs.database.Hooks.On(EventAfterDBSelect, func(args ...interface{}) hooks.Result {
+		dbMode, ok := args[0].(string)
+		require.True(t, ok, "should have received db mode")
+
+		require.Equal(t, dbMode, "master")
+		return hooks.Result{}
+	})
 
 	err = dbs.database.WithMode(DbWriteMode).Find(&user).Error
 	require.NoError(t, err, "should not have failed to fetch")
 
 	require.Equal(t, user.Email, "baz@gmail.com")
-
+	dbs.database.Hooks.Off(EventAfterDBSelect)
 }
 
 func TestDBResolver(t *testing.T) {
