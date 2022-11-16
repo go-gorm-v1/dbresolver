@@ -99,7 +99,7 @@ func (d *Database) Raw(sql string, values ...interface{}) *gorm.DB {
 	}
 
 	d.Hooks.Emit(EventBeforeQueryRun, sql, values)
-	return d.getReplica().Raw(sql, values...)
+	return d.selectSource().Raw(sql, values...)
 }
 
 func (d *Database) Where(query interface{}, args ...interface{}) *gorm.DB {
